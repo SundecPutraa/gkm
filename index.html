@@ -54,7 +54,7 @@
       color: green;
       font-weight: bold;
       font-size: 1.2em;
-      visibility: hidden; /* Tersembunyi saat tidak ada pembaruan */
+      visibility: hidden;
     }
 
     /* Responsif untuk layar yang lebih kecil */
@@ -99,7 +99,6 @@
   </style>
 </head>
 <body>
-  <h1>TIM SUSU TFJ CJR</h1>
   <h1>Dashboard Monitoring</h1>
   <div class="card">
     <div class="label">Tegangan</div>
@@ -171,11 +170,17 @@
           latestData["4_Frequency"] &&
           latestData["5_Waktu"]
         ) {
+          // Menampilkan data pada dashboard
           document.getElementById("voltage").innerText = latestData["1_Voltage"];
           document.getElementById("current").innerText = latestData["2_Current"];
           document.getElementById("power").innerText = latestData["3_Power"];
           document.getElementById("frequency").innerText = latestData["4_Frequency"];
-          document.getElementById("waktu").innerText = latestData["5_Waktu"];
+          
+          // Mengambil timestamp dari Firebase (diubah menjadi format waktu lokal)
+          let timestamp = latestData["5_Waktu"]; // Firebase timestamp
+          let date = new Date(timestamp);
+          let formattedTime = date.toLocaleString(); // Atau sesuaikan format yang diinginkan
+          document.getElementById("waktu").innerText = formattedTime;
 
           // Menyimpan data lengkap
           completeData = logs;
@@ -227,6 +232,7 @@
       link.click();
     });
 
+    // Memulai proses mendengarkan log dari Firebase
     listenLatestLog();
   </script>
 </body>
