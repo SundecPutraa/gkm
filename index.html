@@ -2,87 +2,96 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Monitoring</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      padding: 20px;
+      background: #f4f4f4;
+      color: #333;
       text-align: center;
+      padding: 20px;
+      margin: 0;
     }
     .card {
-      background: white;
+      background: #fff;
       padding: 20px;
       margin: 20px auto;
       max-width: 600px;
       border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      border-left: 5px solid #0077cc;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border: 2px solid #0077cc;
     }
     .label {
-      margin-top: 10px;
       font-weight: bold;
+      margin-top: 10px;
+      display: block;
     }
     .value {
       font-size: 1.5em;
-      margin: 5px 0 15px;
-      background: #e0f7fa;
+      margin-top: 5px;
       padding: 10px;
+      background: #f0f8ff;
       border-radius: 5px;
     }
-    #update-indicator {
+    .update-indicator {
       margin-top: 10px;
       color: green;
       font-weight: bold;
+      font-size: 1.2em;
       visibility: hidden;
     }
-    .date-selector, .download-button {
-      margin-top: 20px;
-      padding: 10px;
-      font-size: 1em;
-      border-radius: 5px;
-      border: 1px solid #0077cc;
-    }
     .download-button {
-      background: #0077cc;
+      padding: 10px 20px;
+      background-color: #0077cc;
       color: white;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 5px;
       cursor: pointer;
+      margin-top: 20px;
     }
     .download-button:hover {
-      background: #005fa3;
+      background-color: #005fa3;
+    }
+    .date-selector {
+      padding: 10px;
+      margin-top: 20px;
+      font-size: 1.2em;
     }
   </style>
 </head>
-
 <body>
   <h1>Dashboard Monitoring</h1>
+  
   <div class="card">
-    <div class="label">Tegangan (V)</div>
+    <div class="label">Tegangan</div>
     <div class="value" id="voltage">Menunggu...</div>
 
-    <div class="label">Arus (A)</div>
+    <div class="label">Arus</div>
     <div class="value" id="current">Menunggu...</div>
 
-    <div class="label">Daya (W)</div>
+    <div class="label">Daya</div>
     <div class="value" id="power">Menunggu...</div>
 
-    <div class="label">Frekuensi (Hz)</div>
+    <div class="label">Frekuensi</div>
     <div class="value" id="frequency">Menunggu...</div>
 
     <div class="label">Waktu</div>
     <div class="value" id="waktu">Menunggu...</div>
 
-    <div id="update-indicator">Updating!</div>
+    <div id="update-indicator" class="update-indicator">Updating!</div>
   </div>
 
-  <select id="dateSelector" class="date-selector">
-    <option value="">Pilih Tanggal Data</option>
-  </select>
-  <br>
-  <button id="downloadBtn" class="download-button">Download Data</button>
+  <div>
+    <select id="dateSelector" class="date-selector">
+      <option value="">Pilih Tanggal</option>
+    </select>
+  </div>
 
-  <!-- Firebase SDK -->
+  <button class="download-button" id="downloadBtn">Download Data</button>
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
@@ -94,47 +103,49 @@
       projectId: "gkm-sundec",
       storageBucket: "gkm-sundec.firebasestorage.app",
       messagingSenderId: "336581347048",
-      appId: "1:336581347048:web:1fa0a2fc376aa30d2eab5d"
+      appId: "1:336581347048:web:1fa0a2fc376aa30d2eab5d",
+      measurementId: "G-3MZCY9NTD9"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let completeData = {};
+    let availableDates = [];
 
-    function listenToLogs() {
+    function listenLatestLog() {
       const logRef = db.ref("Log");
 
       logRef.on("value", (snapshot) => {
         const logs = snapshot.val();
         if (!logs) return;
 
-        completeData = logs;
-
-        const availableDates = Object.keys(logs).sort();
+        availableDates = Object.keys(logs).sort();
         populateDateSelector(availableDates);
 
         let latestData = null;
         let latestTimestamp = 0;
 
-        availableDates.forEach(date => {
-          const times = Object.keys(logs[date]);
-          times.forEach(time => {
-            const data = logs[date][time];
+        for (let tanggal of availableDates) {
+          const tanggalLog = logs[tanggal];
+          for (let jam in tanggalLog) {
+            const data = tanggalLog[jam];
             const waktu = data["5_Waktu"];
             if (waktu) {
-              const timeMs = new Date(waktu).getTime();
-              if (timeMs > latestTimestamp && timeMs <= Date.now()) {
-                latestTimestamp = timeMs;
+              const waktuMs = new Date(waktu).getTime();
+              if (waktuMs > latestTimestamp && waktuMs < Date.now() + 24 * 60 * 60 * 1000) {
+                latestTimestamp = waktuMs;
                 latestData = data;
               }
             }
-          });
-        });
+          }
+        }
 
         if (latestData) {
           updateDashboard(latestData);
         }
+
+        completeData = logs;
       });
     }
 
@@ -145,8 +156,8 @@
       document.getElementById("frequency").innerText = data["4_Frequency"] ?? "N/A";
 
       if (data["5_Waktu"]) {
-        const waktu = new Date(data["5_Waktu"]);
-        const formatted = waktu.toLocaleString('id-ID', { hour12: false });
+        const waktuDate = new Date(data["5_Waktu"]);
+        const formatted = waktuDate.toLocaleString('id-ID');
         document.getElementById("waktu").innerText = formatted;
       } else {
         document.getElementById("waktu").innerText = "N/A";
@@ -161,7 +172,7 @@
 
     function populateDateSelector(dates) {
       const selector = document.getElementById("dateSelector");
-      selector.innerHTML = "<option value=''>Pilih Tanggal Data</option>";
+      selector.innerHTML = "<option value=''>Pilih Tanggal</option>";
 
       dates.forEach(date => {
         const option = document.createElement("option");
@@ -171,28 +182,27 @@
       });
     }
 
-    document.getElementById("downloadBtn").addEventListener("click", () => {
+    document.getElementById("downloadBtn").addEventListener("click", function () {
       const selectedDate = document.getElementById("dateSelector").value;
       if (!selectedDate) {
-        alert("Pilih tanggal terlebih dahulu.");
+        alert("Pilih tanggal terlebih dahulu!");
         return;
       }
 
-      const data = completeData[selectedDate];
-      if (!data) {
-        alert("Data tidak ditemukan.");
+      const selectedData = completeData[selectedDate];
+      if (!selectedData) {
+        alert("Data untuk tanggal ini tidak ditemukan.");
         return;
       }
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(selectedData, null, 2)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `data_${selectedDate}.json`;
       link.click();
     });
 
-    listenToLogs();
+    listenLatestLog();
   </script>
-
 </body>
 </html>
