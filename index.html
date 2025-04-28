@@ -2,98 +2,28 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Monitoring</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      color: #333;
-      text-align: center;
-      padding: 20px;
-      margin: 0;
-    }
-    .card {
-      background: #fff;
-      padding: 20px;
-      margin: 20px auto;
-      max-width: 600px;
-      border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      border: 2px solid #0077cc;
-    }
-    .label {
-      font-weight: bold;
-      margin-top: 10px;
-      display: block;
-    }
-    .value {
-      font-size: 1.5em;
-      margin-top: 5px;
-      padding: 10px;
-      background: #f0f8ff;
-      border-radius: 5px;
-    }
-    .update-indicator {
-      margin-top: 10px;
-      color: green;
-      font-weight: bold;
-      font-size: 1.2em;
-      visibility: hidden;
-    }
-    .download-button {
-      padding: 10px 20px;
-      background-color: #0077cc;
-      color: white;
-      font-size: 1.2em;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-    .download-button:hover {
-      background-color: #005fa3;
-    }
-    .date-selector {
-      padding: 10px;
-      margin-top: 20px;
-      font-size: 1.2em;
-    }
-  </style>
-</head>
-<body>
-  <h1>Dashboard Monitoring</h1>
-  
-  <div class="card">
-    <div class="label">Tegangan</div>
-    <div class="value" id="voltage">Menunggu...</div>
-
-    <div class="label">Arus</div>
-    <div class="value" id="current">Menunggu...</div>
-
-    <div class="label">Daya</div>
-    <div class="value" id="power">Menunggu...</div>
-
-    <div class="label">Frekuensi</div>
-    <div class="value" id="frequency">Menunggu...</div>
-
-    <div class="label">Waktu</div>
-    <div class="value" id="waktu">Menunggu...</div>
-
-    <div id="update-indicator" class="update-indicator">Updating!</div>
-  </div>
-
-  <div>
-    <select id="dateSelector" class="date-selector">
-      <option value="">Pilih Tanggal</option>
-    </select>
-  </div>
-
-  <button class="download-button" id="downloadBtn">Download Data</button>
-
-  <!-- Firebase -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitoring PZEM</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h2>Realtime Monitoring PZEM</h2>
+  <table border="1" cellpadding="10" id="dataTable">
+    <thead>
+      <tr>
+        <th>Tanggal</th>
+        <th>Jam</th>
+        <th>Tegangan (V)</th>
+        <th>Arus (A)</th>
+        <th>Daya (W)</th>
+        <th>Frekuensi (Hz)</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <!-- Data akan muncul di sini -->
+    </tbody>
+  </table>
 
   <script>
     const firebaseConfig = {
@@ -101,108 +31,40 @@
       authDomain: "gkm-sundec.firebaseapp.com",
       databaseURL: "https://gkm-sundec-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "gkm-sundec",
-      storageBucket: "gkm-sundec.firebasestorage.app",
+      storageBucket: "gkm-sundec.appspot.com",
       messagingSenderId: "336581347048",
       appId: "1:336581347048:web:1fa0a2fc376aa30d2eab5d",
       measurementId: "G-3MZCY9NTD9"
     };
 
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const database = firebase.database();
 
-    let completeData = {};
-    let availableDates = [];
+    const tableBody = document.getElementById("tableBody");
 
-    function listenLatestLog() {
-      const logRef = db.ref("Log");
-
-      logRef.on("value", (snapshot) => {
-        const logs = snapshot.val();
-        if (!logs) return;
-
-        availableDates = Object.keys(logs).sort();
-        populateDateSelector(availableDates);
-
-        let latestData = null;
-        let latestTimestamp = 0;
-
-        for (let tanggal of availableDates) {
-          const tanggalLog = logs[tanggal];
-          for (let jam in tanggalLog) {
-            const data = tanggalLog[jam];
-            const waktu = data["5_Waktu"];
-            if (waktu) {
-              const waktuMs = new Date(waktu).getTime();
-              if (waktuMs > latestTimestamp && waktuMs < Date.now() + 24 * 60 * 60 * 1000) {
-                latestTimestamp = waktuMs;
-                latestData = data;
-              }
-            }
-          }
-        }
-
-        if (latestData) {
-          updateDashboard(latestData);
-        }
-
-        completeData = logs;
-      });
-    }
-
-    function updateDashboard(data) {
-      document.getElementById("voltage").innerText = data["1_Voltage"] ?? "N/A";
-      document.getElementById("current").innerText = data["2_Current"] ?? "N/A";
-      document.getElementById("power").innerText = data["3_Power"] ?? "N/A";
-      document.getElementById("frequency").innerText = data["4_Frequency"] ?? "N/A";
-
-      if (data["5_Waktu"]) {
-        const waktuDate = new Date(data["5_Waktu"]);
-        const formatted = waktuDate.toLocaleString('id-ID');
-        document.getElementById("waktu").innerText = formatted;
-      } else {
-        document.getElementById("waktu").innerText = "N/A";
+    database.ref('Log').on('value', (snapshot) => {
+      tableBody.innerHTML = ''; // Kosongkan tabel sebelum update
+      const data = snapshot.val();
+      if (data) {
+        Object.keys(data).forEach(tanggal => {
+          const jamData = data[tanggal];
+          Object.keys(jamData).forEach(jam => {
+            const item = jamData[jam];
+            const row = `
+              <tr>
+                <td>${tanggal}</td>
+                <td>${jam}</td>
+                <td>${item['1_Voltage'] || '-'}</td>
+                <td>${item['2_Current'] || '-'}</td>
+                <td>${item['3_Power'] || '-'}</td>
+                <td>${item['4_Frequency'] || '-'}</td>
+              </tr>
+            `;
+            tableBody.innerHTML += row;
+          });
+        });
       }
-
-      const indicator = document.getElementById("update-indicator");
-      indicator.style.visibility = 'visible';
-      setTimeout(() => {
-        indicator.style.visibility = 'hidden';
-      }, 2000);
-    }
-
-    function populateDateSelector(dates) {
-      const selector = document.getElementById("dateSelector");
-      selector.innerHTML = "<option value=''>Pilih Tanggal</option>";
-
-      dates.forEach(date => {
-        const option = document.createElement("option");
-        option.value = date;
-        option.textContent = date;
-        selector.appendChild(option);
-      });
-    }
-
-    document.getElementById("downloadBtn").addEventListener("click", function () {
-      const selectedDate = document.getElementById("dateSelector").value;
-      if (!selectedDate) {
-        alert("Pilih tanggal terlebih dahulu!");
-        return;
-      }
-
-      const selectedData = completeData[selectedDate];
-      if (!selectedData) {
-        alert("Data untuk tanggal ini tidak ditemukan.");
-        return;
-      }
-
-      const blob = new Blob([JSON.stringify(selectedData, null, 2)], { type: 'application/json' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `data_${selectedDate}.json`;
-      link.click();
     });
-
-    listenLatestLog();
   </script>
 </body>
 </html>
