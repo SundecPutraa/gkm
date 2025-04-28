@@ -57,7 +57,6 @@
       visibility: hidden;
     }
 
-    /* Responsif untuk layar yang lebih kecil */
     @media (max-width: 768px) {
       h1 {
         font-size: 1.5em;
@@ -74,7 +73,6 @@
       }
     }
 
-    /* Style untuk tombol download */
     .download-button {
       padding: 10px 20px;
       background-color: #0077cc;
@@ -90,7 +88,6 @@
       background-color: #005fa3;
     }
 
-    /* Style untuk dropdown tanggal */
     .date-selector {
       padding: 10px;
       margin-top: 20px;
@@ -114,17 +111,14 @@
     <div id="update-indicator" class="update-indicator">Data Telah di Update!</div>
   </div>
 
-  <!-- Dropdown untuk memilih tanggal -->
   <div>
     <select id="dateSelector" class="date-selector">
       <option value="">Pilih Tanggal Data</option>
     </select>
   </div>
 
-  <!-- Tombol Download -->
   <button class="download-button" id="downloadBtn">Download Data</button>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
@@ -142,65 +136,61 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let completeData = {};  // Menyimpan semua data yang diambil dari Firebase
-    let availableDates = [];  // Menyimpan daftar tanggal yang tersedia untuk dipilih
+    let completeData = {};
+    let availableDates = [];
 
     function listenLatestLog() {
       const logRef = db.ref("Log");
 
-      logRef.on("value", (snapshot) => {
-        const logs = snapshot.val();
-        if (!logs) return;
+      logRef.on("child_added", (snapshot) => {
+        const dateKey = snapshot.key;
+        const times = snapshot.val();
 
-        availableDates = Object.keys(logs).sort();  // Mengambil daftar tanggal dari log
-        populateDateSelector(availableDates); // Memasukkan tanggal ke dropdown
-
-        const dates = availableDates;
-        const latestDate = dates[dates.length - 1];
-        const timeLogs = logs[latestDate];
-        const times = Object.keys(timeLogs).sort();
-        const latestTime = times[times.length - 1];
-        const latestData = timeLogs[latestTime];
-
-        if (
-          latestData &&
-          latestData["1_Voltage"] &&
-          latestData["2_Current"] &&
-          latestData["3_Power"] &&
-          latestData["4_Frequency"] &&
-          latestData["5_Waktu"]
-        ) {
-          // Menampilkan data pada dashboard
-          document.getElementById("voltage").innerText = latestData["1_Voltage"];
-          document.getElementById("current").innerText = latestData["2_Current"];
-          document.getElementById("power").innerText = latestData["3_Power"];
-          document.getElementById("frequency").innerText = latestData["4_Frequency"];
+        Object.keys(times).forEach((timeKey) => {
+          const data = times[timeKey];
           
-          // Mengambil timestamp dari Firebase (diubah menjadi format waktu lokal)
-          let timestamp = latestData["5_Waktu"]; // Firebase timestamp
-          let date = new Date(timestamp);
-          let formattedTime = date.toLocaleString(); // Atau sesuaikan format yang diinginkan
-          document.getElementById("waktu").innerText = formattedTime;
+          if (
+            data["1_Voltage"] &&
+            data["2_Current"] &&
+            data["3_Power"] &&
+            data["4_Frequency"] &&
+            data["5_Waktu"]
+          ) {
+            const waktuFirebase = new Date(data["5_Waktu"]);
 
-          // Menyimpan data lengkap
-          completeData = logs;
+            if (waktuFirebase.getFullYear() >= 2020 && waktuFirebase.getFullYear() <= 2030) {
+              document.getElementById("voltage").innerText = data["1_Voltage"];
+              document.getElementById("current").innerText = data["2_Current"];
+              document.getElementById("power").innerText = data["3_Power"];
+              document.getElementById("frequency").innerText = data["4_Frequency"];
 
-          // Menampilkan indikator pembaruan
-          document.getElementById("update-indicator").style.visibility = 'visible';
+              let formattedTime = waktuFirebase.toLocaleString();
+              document.getElementById("waktu").innerText = formattedTime;
 
-          // Menyembunyikan indikator setelah beberapa detik
-          setTimeout(() => {
-            document.getElementById("update-indicator").style.visibility = 'hidden';
-          }, 3000); // Menyembunyikan setelah 3 detik
-        }
+              document.getElementById("update-indicator").style.visibility = 'visible';
+              setTimeout(() => {
+                document.getElementById("update-indicator").style.visibility = 'hidden';
+              }, 3000);
+            }
+          }
+        });
+
+        // Update daftar tanggal untuk dropdown
+        db.ref("Log").once("value", (snap) => {
+          const logs = snap.val();
+          if (logs) {
+            availableDates = Object.keys(logs).sort();
+            completeData = logs;
+            populateDateSelector(availableDates);
+          }
+        });
       });
     }
 
     function populateDateSelector(dates) {
       const dateSelector = document.getElementById("dateSelector");
-      dateSelector.innerHTML = "<option value=''>Pilih Tanggal</option>";  // Reset pilihan dropdown
+      dateSelector.innerHTML = "<option value=''>Pilih Tanggal</option>";
 
-      // Mengisi dropdown dengan daftar tanggal
       dates.forEach(date => {
         const option = document.createElement("option");
         option.value = date;
@@ -209,7 +199,6 @@
       });
     }
 
-    // Fungsi untuk mendownload file JSON berdasarkan tanggal yang dipilih
     document.getElementById("downloadBtn").addEventListener("click", function () {
       const selectedDate = document.getElementById("dateSelector").value;
       if (!selectedDate) {
@@ -217,9 +206,7 @@
         return;
       }
 
-      // Ambil data berdasarkan tanggal yang dipilih
       const selectedData = completeData[selectedDate];
-
       if (!selectedData) {
         alert("Data untuk tanggal ini tidak ditemukan.");
         return;
@@ -232,7 +219,6 @@
       link.click();
     });
 
-    // Memulai proses mendengarkan log dari Firebase
     listenLatestLog();
   </script>
 </body>
