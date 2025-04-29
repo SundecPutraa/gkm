@@ -8,6 +8,10 @@
     import {
       getDatabase,
       ref,
+      query,
+      orderByKey,
+      limitToLast,
+      get,
       onValue
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
@@ -26,72 +30,50 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    let lastData = {};
-
-    // Fungsi untuk memperbarui data terbaru
-    function updateLatestData() {
+    // Fungsi ambil data terbaru
+    async function updateLatestData() {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const basePath = `/Log/${today}`;
-      const dataRef = ref(db, basePath);
+      const latestTimeQuery = query(ref(db, basePath), orderByKey(), limitToLast(1));
 
-      // Gunakan onValue untuk selalu memantau perubahan data di Firebase
-      onValue(dataRef, snapshot => {
-        if (snapshot.exists()) {
-          snapshot.forEach(childSnapshot => {
-            const latestData = childSnapshot.val();
-            
-            // Periksa apakah ada perubahan pada data dan tampilkan jika ada perubahan
-            if (latestData["1_Voltage"] !== lastData["1_Voltage"]) {
-              updateValue("voltage", latestData["1_Voltage"] || '-- V');
-            }
-            if (latestData["2_Current"] !== lastData["2_Current"]) {
-              updateValue("current", latestData["2_Current"] || '-- A');
-            }
-            if (latestData["3_Power"] !== lastData["3_Power"]) {
-              updateValue("power", latestData["3_Power"] || '-- W');
-            }
-            if (latestData["4_Frequency"] !== lastData["4_Frequency"]) {
-              updateValue("frequency", latestData["4_Frequency"] || '-- Hz');
-            }
-
-            // Menampilkan waktu pembaruan
-            document.getElementById("timestamp").innerText = "Update terakhir: " + (latestData["5_Waktu"] || 'Tidak ada waktu');
-
-            // Simpan data terbaru untuk perbandingan selanjutnya
-            lastData = latestData;
-          });
-        } else {
-          console.error("Data tidak ditemukan di Firebase.");
-        }
+      get(latestTimeQuery).then(snapshot => {
+        snapshot.forEach(childSnapshot => {
+          const latestData = childSnapshot.val();
+          document.getElementById("voltage").innerText = latestData["1_Voltage"];
+          document.getElementById("current").innerText = latestData["2_Current"];
+          document.getElementById("power").innerText = latestData["3_Power"];
+          document.getElementById("frequency").innerText = latestData["4_Frequency"];
+          document.getElementById("timestamp").innerText = "Update terakhir: " + latestData["5_Waktu"];
+        });
       });
-    }
-
-    // Fungsi untuk menampilkan nilai
-    function updateValue(id, newValue) {
-      document.getElementById(id).innerText = newValue;
     }
 
     // Fungsi download seluruh data
     async function downloadAllData() {
       const dbRef = ref(db, '/Log/');
-      const snapshot = await get(dbRef);
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const json = JSON.stringify(data, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = "log_data.json";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        alert("Data tidak ditemukan.");
+      try {
+        const snapshot = await get(dbRef);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const json = JSON.stringify(data, null, 2);
+          const blob = new Blob([json], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = "log_data.json";
+          link.click();
+          URL.revokeObjectURL(url); // Bersihkan URL Object setelah digunakan
+        } else {
+          alert("Data tidak ditemukan.");
+        }
+      } catch (error) {
+        console.error("Terjadi kesalahan saat mengambil data:", error);
+        alert("Gagal mendownload data.");
       }
     }
 
-    // Panggil updateLatestData saat halaman dimuat
+    // Refresh data berkala
+    setInterval(updateLatestData, 5000);
     window.onload = updateLatestData;
     window.downloadAllData = downloadAllData; // agar bisa dipanggil dari tombol
   </script>
