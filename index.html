@@ -40,18 +40,18 @@
           snapshot.forEach(childSnapshot => {
             const latestData = childSnapshot.val();
             
-            // Periksa apakah ada perubahan pada data dan tampilkan highlight jika ada perubahan
+            // Periksa apakah ada perubahan pada data dan tampilkan jika ada perubahan
             if (latestData["1_Voltage"] !== lastData["1_Voltage"]) {
-              updateValueWithHighlight("voltage", latestData["1_Voltage"] || '-- V');
+              updateValue("voltage", latestData["1_Voltage"] || '-- V');
             }
             if (latestData["2_Current"] !== lastData["2_Current"]) {
-              updateValueWithHighlight("current", latestData["2_Current"] || '-- A');
+              updateValue("current", latestData["2_Current"] || '-- A');
             }
             if (latestData["3_Power"] !== lastData["3_Power"]) {
-              updateValueWithHighlight("power", latestData["3_Power"] || '-- W');
+              updateValue("power", latestData["3_Power"] || '-- W');
             }
             if (latestData["4_Frequency"] !== lastData["4_Frequency"]) {
-              updateValueWithHighlight("frequency", latestData["4_Frequency"] || '-- Hz');
+              updateValue("frequency", latestData["4_Frequency"] || '-- Hz');
             }
 
             // Menampilkan waktu pembaruan
@@ -66,12 +66,9 @@
       });
     }
 
-    // Fungsi untuk menampilkan nilai dengan highlight
-    function updateValueWithHighlight(id, newValue) {
-      const element = document.getElementById(id);
-      element.innerText = newValue;
-      element.classList.add("highlight");
-      setTimeout(() => element.classList.remove("highlight"), 1000); // Hapus highlight setelah 1 detik
+    // Fungsi untuk menampilkan nilai
+    function updateValue(id, newValue) {
+      document.getElementById(id).innerText = newValue;
     }
 
     // Fungsi download seluruh data
@@ -157,13 +154,6 @@
 
     .button:hover {
       background: #2980b9;
-    }
-
-    /* Efek highlight */
-    .highlight {
-      background-color: #f39c12;
-      color: white;
-      transition: background-color 0.5s ease;
     }
   </style>
 </head>
