@@ -24,7 +24,7 @@
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 12px;
+      padding: 10px;
       text-align: center;
     }
     th {
@@ -52,26 +52,25 @@
     button:hover {
       background-color: #0056b3;
     }
-    #loading {
-      display: none;
-      text-align: center;
-      margin-top: 10px;
-      font-size: 18px;
-      color: #555;
+    .loading-dots {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
     }
-    #loading span {
+    .loading-dots span {
       display: inline-block;
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       margin: 0 2px;
       background: #007BFF;
       border-radius: 50%;
       animation: loading 0.8s infinite alternate;
     }
-    #loading span:nth-child(2) {
+    .loading-dots span:nth-child(2) {
       animation-delay: 0.2s;
     }
-    #loading span:nth-child(3) {
+    .loading-dots span:nth-child(3) {
       animation-delay: 0.4s;
     }
     @keyframes loading {
@@ -79,12 +78,7 @@
         transform: translateY(0);
       }
       to {
-        transform: translateY(-10px);
-      }
-    }
-    @media (max-width: 600px) {
-      table, th, td {
-        font-size: 14px;
+        transform: translateY(-6px);
       }
     }
   </style>
@@ -93,14 +87,10 @@
 
   <h2>Realtime Monitoring PZEM</h2>
 
-  <div id="loading">
-    <span></span><span></span><span></span> 
-    Loading data...
-  </div>
-
   <table id="dataTable">
     <thead>
       <tr>
+        <th>Loading</th>
         <th>Tanggal</th>
         <th>Jam</th>
         <th>Tegangan (V)</th>
@@ -131,10 +121,19 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     const tableBody = document.getElementById("tableBody");
-    const loading = document.getElementById("loading");
 
     function displayData() {
-      loading.style.display = 'block'; // Tampilkan animasi loading
+      // Saat mulai ambil data, tampilkan baris kosong dengan animasi
+      tableBody.innerHTML = `
+        <tr>
+          <td>
+            <div class="loading-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </td>
+          <td colspan="6">Mengambil data...</td>
+        </tr>
+      `;
 
       database.ref('Log').once('value').then(snapshot => {
         const data = snapshot.val();
@@ -151,6 +150,7 @@
 
           tableBody.innerHTML = `
             <tr class="${(voltage < 200 || voltage > 240) ? 'warning' : 'normal'}">
+              <td></td>
               <td>${latestDate}</td>
               <td>${latestTime}</td>
               <td>${voltage.toFixed(1)}</td>
@@ -160,8 +160,6 @@
             </tr>
           `;
         }
-      }).finally(() => {
-        loading.style.display = 'none'; // Sembunyikan animasi loading setelah update
       });
     }
 
