@@ -39,13 +39,33 @@
       get(latestTimeQuery).then(snapshot => {
         snapshot.forEach(childSnapshot => {
           const latestData = childSnapshot.val();
-          document.getElementById("voltage").innerText = latestData["1_Voltage"];
-          document.getElementById("current").innerText = latestData["2_Current"];
-          document.getElementById("power").innerText = latestData["3_Power"];
-          document.getElementById("frequency").innerText = latestData["4_Frequency"];
+          
+          // Mengupdate nilai dan menambahkan highlight
+          updateValueWithHighlight("voltage", latestData["1_Voltage"]);
+          updateValueWithHighlight("current", latestData["2_Current"]);
+          updateValueWithHighlight("power", latestData["3_Power"]);
+          updateValueWithHighlight("frequency", latestData["4_Frequency"]);
+          
           document.getElementById("timestamp").innerText = "Update terakhir: " + latestData["5_Waktu"];
         });
       });
+    }
+
+    // Fungsi untuk mengupdate nilai dan memberikan highlight
+    function updateValueWithHighlight(id, value) {
+      const element = document.getElementById(id);
+      const previousValue = element.innerText;
+
+      if (previousValue !== value) {
+        element.innerText = value;
+        // Tambahkan class highlight
+        element.classList.add("highlight");
+        
+        // Hapus class setelah beberapa detik (untuk efek highlight sementara)
+        setTimeout(() => {
+          element.classList.remove("highlight");
+        }, 1000); // Efek highlight berlangsung selama 1 detik
+      }
     }
 
     // Fungsi download seluruh data
@@ -132,6 +152,23 @@
 
     .button:hover {
       background: #2980b9;
+    }
+
+    /* Highlight Effect */
+    .highlight {
+      animation: highlight 1s ease-in-out;
+    }
+
+    @keyframes highlight {
+      0% {
+        background-color: #f0f8ff;
+      }
+      50% {
+        background-color: #ffeb3b;
+      }
+      100% {
+        background-color: #f0f8ff;
+      }
     }
   </style>
 </head>
