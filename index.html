@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Dashboard Monitoring Listrik</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
@@ -11,11 +12,9 @@
       query,
       orderByKey,
       limitToLast,
-      get,
-      onValue
+      get
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    // Konfigurasi Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDeYF2Sp3-_1TIMIqpbnGSD9WruZcXwZ8E",
       authDomain: "gkm-sundec.firebaseapp.com",
@@ -26,140 +25,227 @@
       appId: "1:114265325568:web:e515780b9ad1eeff0008c6"
     };
 
-    // Inisialisasi Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Fungsi ambil data terbaru
+    let chartData = {
+      labels: [],
+      voltage: [],
+      current: [],
+      power: [],
+      frequency: []
+    };
+
+    const maxDataPoints = 12; // jumlah titik data ditampilkan (misal: 12 x 5 detik = 1 menit)
+
+    const charts = {};
+
+    window.onload = () => {
+      setupCharts();
+      updateLatestData();
+      setInterval(updateLatestData, 5000);
+    };
+
     async function updateLatestData() {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const today = new Date().toISOString().split('T')[0];
       const basePath = `/Log/${today}`;
       const latestTimeQuery = query(ref(db, basePath), orderByKey(), limitToLast(1));
 
-      get(latestTimeQuery).then(snapshot => {
-        snapshot.forEach(childSnapshot => {
-          const latestData = childSnapshot.val();
-          document.getElementById("voltage").innerText = latestData["1_Voltage"];
-          document.getElementById("current").innerText = latestData["2_Current"];
-          document.getElementById("power").innerText = latestData["3_Power"];
-          document.getElementById("frequency").innerText = latestData["4_Frequency"];
-          document.getElementById("timestamp").innerText = "Update terakhir: " + latestData["5_Waktu"];
-        });
+      const snapshot = await get(latestTimeQuery);
+      snapshot.forEach(child => {
+        const data = child.val();
+        const time = data["5_Waktu"];
+        const voltage = parseFloat(data["1_Voltage"]);
+        const current = parseFloat(data["2_Current"]);
+        const power = parseFloat(data["3_Power"]);
+        const frequency = parseFloat(data["4_Frequency"]);
+
+        document.getElementById("voltage").innerText = voltage + " V";
+        document.getElementById("current").innerText = current + " A";
+        document.getElementById("power").innerText = power + " W";
+        document.getElementById("frequency").innerText = frequency + " Hz";
+        document.getElementById("timestamp").innerText = "Update terakhir: " + time;
+
+        addHighlight("voltage-card");
+        addHighlight("current-card");
+        addHighlight("power-card");
+        addHighlight("frequency-card");
+
+        chartData.labels.push(time);
+        chartData.voltage.push(voltage);
+        chartData.current.push(current);
+        chartData.power.push(power);
+        chartData.frequency.push(frequency);
+
+        if (chartData.labels.length > maxDataPoints) {
+          Object.keys(chartData).forEach(key => chartData[key].shift());
+        }
+
+        updateCharts();
       });
     }
 
-    // Fungsi download seluruh data
-    async function downloadAllData() {
+    function addHighlight(id) {
+      const el = document.getElementById(id);
+      el.classList.add("highlight");
+      setTimeout(() => el.classList.remove("highlight"), 1000);
+    }
+
+    function setupCharts() {
+      charts.voltage = createLineChart("voltageChart", "Tegangan (V)", chartData.labels, chartData.voltage, "#3498db");
+      charts.current = createLineChart("currentChart", "Arus (A)", chartData.labels, chartData.current, "#e67e22");
+      charts.power = createLineChart("powerChart", "Daya (W)", chartData.labels, chartData.power, "#9b59b6");
+      charts.frequency = createLineChart("frequencyChart", "Frekuensi (Hz)", chartData.labels, chartData.frequency, "#2ecc71");
+    }
+
+    function updateCharts() {
+      charts.voltage.data.labels = chartData.labels;
+      charts.current.data.labels = chartData.labels;
+      charts.power.data.labels = chartData.labels;
+      charts.frequency.data.labels = chartData.labels;
+
+      charts.voltage.data.datasets[0].data = chartData.voltage;
+      charts.current.data.datasets[0].data = chartData.current;
+      charts.power.data.datasets[0].data = chartData.power;
+      charts.frequency.data.datasets[0].data = chartData.frequency;
+
+      Object.values(charts).forEach(chart => chart.update());
+    }
+
+    function createLineChart(canvasId, label, labels, data, color) {
+      return new Chart(document.getElementById(canvasId), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: label,
+            data: data,
+            borderColor: color,
+            backgroundColor: color + "33",
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { display: true },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    window.downloadAllData = async function () {
       const dbRef = ref(db, '/Log/');
       const snapshot = await get(dbRef);
       if (snapshot.exists()) {
-        const data = snapshot.val();
-        const json = JSON.stringify(data, null, 2);
+        const json = JSON.stringify(snapshot.val(), null, 2);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = "log_data.json";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'log_data.json';
+        a.click();
+        URL.revokeObjectURL(url);
       } else {
-        alert("Data tidak ditemukan.");
+        alert("Tidak ada data ditemukan.");
       }
-    }
-
-    // Refresh data berkala
-    setInterval(updateLatestData, 5000);
-    window.onload = updateLatestData;
-    window.downloadAllData = downloadAllData; // agar bisa dipanggil dari tombol
+    };
   </script>
 
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
       background: #eef2f7;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
       padding: 40px;
-    }
-
-    h1 {
-      color: #2c3e50;
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      padding: 20px 30px;
-      max-width: 400px;
-      width: 100%;
-      margin-bottom: 20px;
       text-align: center;
     }
 
-    .card h2 {
-      margin: 0;
-      font-size: 1.2em;
-      color: #7f8c8d;
+    h1 {
+      margin-bottom: 20px;
+      color: #2c3e50;
     }
 
-    .card p {
+    .card {
+      display: inline-block;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 20px 30px;
+      width: 220px;
+      margin: 10px;
+      transition: border 0.3s ease;
+    }
+
+    .highlight {
+      border: 3px solid #2ecc71 !important;
+    }
+
+    .value {
       font-size: 1.8em;
-      margin: 5px 0;
       color: #34495e;
     }
 
     #timestamp {
-      margin-top: 10px;
-      font-size: 0.95em;
-      color: #95a5a6;
+      margin-top: 15px;
+      color: #888;
     }
 
     .button {
+      margin-top: 25px;
       padding: 10px 20px;
+      font-size: 1em;
       background: #3498db;
       color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      margin-top: 20px;
-      font-size: 1em;
     }
 
     .button:hover {
       background: #2980b9;
+    }
+
+    canvas {
+      max-width: 600px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     }
   </style>
 </head>
 <body>
   <h1>Dashboard Monitoring Listrik</h1>
 
-  <div class="card">
-    <h2>Tegangan</h2>
-    <p id="voltage">-- V</p>
+  <div class="card" id="voltage-card">
+    <div>Tegangan</div>
+    <div class="value" id="voltage">-- V</div>
   </div>
-
-  <div class="card">
-    <h2>Arus</h2>
-    <p id="current">-- A</p>
+  <div class="card" id="current-card">
+    <div>Arus</div>
+    <div class="value" id="current">-- A</div>
   </div>
-
-  <div class="card">
-    <h2>Daya</h2>
-    <p id="power">-- W</p>
+  <div class="card" id="power-card">
+    <div>Daya</div>
+    <div class="value" id="power">-- W</div>
   </div>
-
-  <div class="card">
-    <h2>Frekuensi</h2>
-    <p id="frequency">-- Hz</p>
+  <div class="card" id="frequency-card">
+    <div>Frekuensi</div>
+    <div class="value" id="frequency">-- Hz</div>
   </div>
 
   <div id="timestamp">Memuat data...</div>
-
   <button class="button" onclick="downloadAllData()">Download Semua Data</button>
+
+  <canvas id="voltageChart"></canvas>
+  <canvas id="currentChart"></canvas>
+  <canvas id="powerChart"></canvas>
+  <canvas id="frequencyChart"></canvas>
 </body>
 </html>
