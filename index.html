@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard Monitoring Listrik</title>
+  <title>Dashboard Monitoring</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -113,31 +113,40 @@
     }
 
     function createLineChart(canvasId, label, labels, data, color) {
-      return new Chart(document.getElementById(canvasId), {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: label,
-            data: data,
-            borderColor: color,
-            backgroundColor: color + "33",
-            tension: 0.3,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: { display: true },
-            y: { beginAtZero: true }
-          }
+  return new Chart(document.getElementById(canvasId), {
+    type: 'line',
+    data: {
+      labels: labels.map((_, i) => i + 1), // Ganti label dengan angka urut (1, 2, 3...)
+      datasets: [{
+        label: label,
+        data: data,
+        borderColor: color,
+        backgroundColor: color + "33",
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: `Grafik ${label}`,
+          font: { size: 18 }
         }
-      });
+      },
+      scales: {
+        x: {
+          display: false // Sembunyikan label sumbu X
+        },
+        y: {
+          beginAtZero: true
+        }
+      }
     }
+  });
+}
 
     window.downloadAllData = async function () {
       const dbRef = ref(db, '/Log/');
