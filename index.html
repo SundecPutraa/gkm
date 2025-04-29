@@ -1,110 +1,60 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Monitoring PZEM Realtime</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitoring Daya Realtime</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
       padding: 20px;
-      margin: 0;
-      background: #f0f2f5;
     }
+
     h2 {
-      text-align: center;
+      margin-bottom: 20px;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      margin-top: 20px;
+
+    .card {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s ease;
     }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 10px;
-      text-align: center;
+
+    .highlight {
+      background-color: #ffffcc !important;
     }
-    th {
-      background: #007BFF;
-      color: white;
+
+    .data-row {
+      margin: 10px 0;
+      font-size: 1.2em;
     }
-    .normal {
-      background-color: #d4edda;
+
+    .label {
+      font-weight: bold;
+      display: inline-block;
+      width: 120px;
     }
-    .warning {
-      background-color: #f8d7da;
-    }
-    button {
-      margin-top: 20px;
-      display: block;
-      width: 100%;
-      padding: 10px;
-      background-color: #007BFF;
-      color: white;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .loading-dots {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-  }
-  .loading-dots span {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    margin: 0 2px;
-    background: #007BFF;
-    border-radius: 50%;
-    animation: loading 1.5s infinite ease-in-out;
-  }
-  .loading-dots span:nth-child(2) {
-    animation-delay: 0.3s;
-  }
-  .loading-dots span:nth-child(3) {
-    animation-delay: 0.6s;
-  }
-  @keyframes loading {
-    0%, 80%, 100% {
-      transform: scale(0);
-    }
-    40% {
-      transform: scale(1);
-      }
+
+    .value {
+      display: inline-block;
     }
   </style>
 </head>
 <body>
 
-  <h2>Realtime Monitoring PZEM</h2>
-
-  <table id="dataTable">
-    <thead>
-      <tr>
-        <th>Loading</th>
-        <th>Tanggal</th>
-        <th>Jam</th>
-        <th>Tegangan (V)</th>
-        <th>Arus (A)</th>
-        <th>Daya (W)</th>
-        <th>Frekuensi (Hz)</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody">
-      <!-- Data terbaru akan muncul di sini -->
-    </tbody>
-  </table>
-
-  <button onclick="downloadCSV()">Download Semua Data</button>
+  <h2>Realtime Monitoring Daya</h2>
+  <div id="data-card" class="card">
+    <div class="data-row"><span class="label">Waktu:</span> <span id="waktu" class="value">-</span></div>
+    <div class="data-row"><span class="label">Tegangan:</span> <span id="voltage" class="value">-</span></div>
+    <div class="data-row"><span class="label">Arus:</span> <span id="current" class="value">-</span></div>
+    <div class="data-row"><span class="label">Daya:</span> <span id="power" class="value">-</span></div>
+    <div class="data-row"><span class="label">Frekuensi:</span> <span id="frequency" class="value">-</span></div>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -112,85 +62,50 @@
       authDomain: "gkm-sundec.firebaseapp.com",
       databaseURL: "https://gkm-sundec-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "gkm-sundec",
-      storageBucket: "gkm-sundec.appspot.com",
+      storageBucket: "gkm-sundec.firebasestorage.app",
       messagingSenderId: "336581347048",
       appId: "1:336581347048:web:1fa0a2fc376aa30d2eab5d",
       measurementId: "G-3MZCY9NTD9"
     };
 
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const tableBody = document.getElementById("tableBody");
+    const db = firebase.database();
 
-    function displayData() {
-      // Saat mulai ambil data, tampilkan baris kosong dengan animasi
-      tableBody.innerHTML = `
-        <tr>
-          <td>
-            <div class="loading-dots">
-              <span></span><span></span><span></span>
-            </div>
-          </td>
-          <td colspan="6">Mengambil data...</td>
-        </tr>
-      `;
-
-      database.ref('Log').once('value').then(snapshot => {
-        const data = snapshot.val();
-        if (data) {
-          let latestDate = Object.keys(data).sort().pop();
-          let times = Object.keys(data[latestDate]);
-          let latestTime = times.sort().pop();
-          const item = data[latestDate][latestTime];
-
-          let voltage = parseFloat(item['1_Voltage'].replace(' V','')) || 0;
-          let current = parseFloat(item['2_Current'].replace(' A','')) || 0;
-          let power = parseFloat(item['3_Power'].replace(' W','')) || 0;
-          let frequency = parseFloat(item['4_Frequency'].replace(' Hz','')) || 0;
-
-          tableBody.innerHTML = `
-            <tr class="${(voltage < 200 || voltage > 240) ? 'warning' : 'normal'}">
-              <td></td>
-              <td>${latestDate}</td>
-              <td>${latestTime}</td>
-              <td>${voltage.toFixed(1)}</td>
-              <td>${current.toFixed(2)}</td>
-              <td>${power.toFixed(1)}</td>
-              <td>${frequency.toFixed(1)}</td>
-            </tr>
-          `;
-        }
-      });
+    function getTodayDate() {
+      const now = new Date();
+      return now.toISOString().split('T')[0]; // format: YYYY-MM-DD
     }
 
-    // Ambil data awal
-    displayData();
+    const logRef = db.ref("Log/" + getTodayDate());
 
-    // Update data setiap 5 detik
-    setInterval(displayData, 5000);
-
-    // Fungsi untuk download semua data
-    function downloadCSV() {
-      database.ref('Log').once('value').then(snapshot => {
-        const data = snapshot.val();
-        if (data) {
-          let csv = 'Tanggal,Jam,Tegangan (V),Arus (A),Daya (W),Frekuensi (Hz)\n';
-          Object.keys(data).forEach(tanggal => {
-            Object.keys(data[tanggal]).forEach(jam => {
-              const item = data[tanggal][jam];
-              csv += `${tanggal},${jam},${(item['1_Voltage'] || '').replace(' V','')},${(item['2_Current'] || '').replace(' A','')},${(item['3_Power'] || '').replace(' W','')},${(item['4_Frequency'] || '').replace(' Hz','')}\n`;
-            });
-          });
-
-          const blob = new Blob([csv], { type: 'text/csv' });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'data_log_pzem.csv';
-          a.click();
-          window.URL.revokeObjectURL(url);
-        }
+    logRef.limitToLast(1).on("child_added", (hourSnap) => {
+      const hourKey = hourSnap.key;
+      const hourRef = db.ref("Log/" + getTodayDate() + "/" + hourKey);
+      hourRef.limitToLast(1).on("child_added", (minuteSnap) => {
+        const dataRef = minuteSnap.ref;
+        dataRef.on("value", (snapshot) => {
+          const data = snapshot.val();
+          if (data) updateDisplay(data);
+        });
       });
+    });
+
+    function updateDisplay(data) {
+      updateElement("waktu", data["5_Waktu"]);
+      updateElement("voltage", data["1_Voltage"]);
+      updateElement("current", data["2_Current"]);
+      updateElement("power", data["3_Power"]);
+      updateElement("frequency", data["4_Frequency"]);
+    }
+
+    function updateElement(id, newText) {
+      const el = document.getElementById(id);
+      if (el.innerText !== newText) {
+        el.innerText = newText;
+        const parent = document.getElementById("data-card");
+        parent.classList.add("highlight");
+        setTimeout(() => parent.classList.remove("highlight"), 1000);
+      }
     }
   </script>
 
