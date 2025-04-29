@@ -2,112 +2,119 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Monitoring Daya Realtime</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f2f2f2;
-      padding: 20px;
-    }
+  <title>Dashboard Monitoring Listrik</title>
+  <script type="module">
+    // Import Firebase SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, query, orderByKey, limitToLast, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    h2 {
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background: #ffffff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      transition: background-color 0.3s ease;
-    }
-
-    .highlight {
-      background-color: #ffffcc !important;
-    }
-
-    .data-row {
-      margin: 10px 0;
-      font-size: 1.2em;
-    }
-
-    .label {
-      font-weight: bold;
-      display: inline-block;
-      width: 120px;
-    }
-
-    .value {
-      display: inline-block;
-    }
-  </style>
-</head>
-<body>
-
-  <h2>Realtime Monitoring Daya</h2>
-  <div id="data-card" class="card">
-    <div class="data-row"><span class="label">Waktu:</span> <span id="waktu" class="value">-</span></div>
-    <div class="data-row"><span class="label">Tegangan:</span> <span id="voltage" class="value">-</span></div>
-    <div class="data-row"><span class="label">Arus:</span> <span id="current" class="value">-</span></div>
-    <div class="data-row"><span class="label">Daya:</span> <span id="power" class="value">-</span></div>
-    <div class="data-row"><span class="label">Frekuensi:</span> <span id="frequency" class="value">-</span></div>
-  </div>
-
-  <script>
+    // Konfigurasi Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDeYF2Sp3-_1TIMIqpbnGSD9WruZcXwZ8E",
       authDomain: "gkm-sundec.firebaseapp.com",
       databaseURL: "https://gkm-sundec-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "gkm-sundec",
-      storageBucket: "gkm-sundec.firebasestorage.app",
-      messagingSenderId: "336581347048",
-      appId: "1:336581347048:web:1fa0a2fc376aa30d2eab5d",
-      measurementId: "G-3MZCY9NTD9"
+      storageBucket: "gkm-sundec.appspot.com",
+      messagingSenderId: "114265325568",
+      appId: "1:114265325568:web:e515780b9ad1eeff0008c6"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    // Inisialisasi Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-    function getTodayDate() {
-      const now = new Date();
-      return now.toISOString().split('T')[0]; // format: YYYY-MM-DD
-    }
+    // Ambil data terbaru dari Firebase
+    function updateLatestData() {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const basePath = `/Log/${today}`;
 
-    const logRef = db.ref("Log/" + getTodayDate());
-
-    logRef.limitToLast(1).on("child_added", (hourSnap) => {
-      const hourKey = hourSnap.key;
-      const hourRef = db.ref("Log/" + getTodayDate() + "/" + hourKey);
-      hourRef.limitToLast(1).on("child_added", (minuteSnap) => {
-        const dataRef = minuteSnap.ref;
-        dataRef.on("value", (snapshot) => {
-          const data = snapshot.val();
-          if (data) updateDisplay(data);
+      const latestTimeQuery = query(ref(db, basePath), orderByKey(), limitToLast(1));
+      onValue(latestTimeQuery, (snapshot) => {
+        snapshot.forEach(childSnapshot => {
+          const latestData = childSnapshot.val();
+          document.getElementById("voltage").innerText = latestData["1_Voltage"];
+          document.getElementById("current").innerText = latestData["2_Current"];
+          document.getElementById("power").innerText = latestData["3_Power"];
+          document.getElementById("frequency").innerText = latestData["4_Frequency"];
+          document.getElementById("timestamp").innerText = latestData["5_Waktu"];
         });
       });
-    });
-
-    function updateDisplay(data) {
-      updateElement("waktu", data["5_Waktu"]);
-      updateElement("voltage", data["1_Voltage"]);
-      updateElement("current", data["2_Current"]);
-      updateElement("power", data["3_Power"]);
-      updateElement("frequency", data["4_Frequency"]);
     }
 
-    function updateElement(id, newText) {
-      const el = document.getElementById(id);
-      if (el.innerText !== newText) {
-        el.innerText = newText;
-        const parent = document.getElementById("data-card");
-        parent.classList.add("highlight");
-        setTimeout(() => parent.classList.remove("highlight"), 1000);
-      }
-    }
+    // Mulai update
+    setInterval(updateLatestData, 5000); // refresh tiap 5 detik
+    window.onload = updateLatestData;
   </script>
 
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 20px 30px;
+      max-width: 400px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 1.2em;
+      color: #7f8c8d;
+    }
+
+    .card p {
+      font-size: 1.8em;
+      margin: 5px 0;
+      color: #34495e;
+    }
+
+    #timestamp {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #95a5a6;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dashboard Monitoring Listrik</h1>
+
+  <div class="card">
+    <h2>Tegangan</h2>
+    <p id="voltage">-- V</p>
+  </div>
+
+  <div class="card">
+    <h2>Arus</h2>
+    <p id="current">-- A</p>
+  </div>
+
+  <div class="card">
+    <h2>Daya</h2>
+    <p id="power">-- W</p>
+  </div>
+
+  <div class="card">
+    <h2>Frekuensi</h2>
+    <p id="frequency">-- Hz</p>
+  </div>
+
+  <div id="timestamp">Memuat data...</div>
 </body>
 </html>
